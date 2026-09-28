@@ -1,0 +1,28 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Terraform variables locais
+*.tfvars
+*.tfvars.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dados locais
+data/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
