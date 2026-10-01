@@ -1,3 +1,5 @@
+import os
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col,
@@ -9,8 +11,15 @@ from pyspark.sql.functions import (
 )
 
 
-RAW_PATH = "/data/raw/premier_league/*.csv"
-PROCESSED_PATH = "/data/processed/premier_league"
+RAW_PATH = os.getenv(
+    "RAW_PATH",
+    "/data/raw/premier_league/*.csv"
+)
+
+PROCESSED_PATH = os.getenv(
+    "PROCESSED_PATH",
+    "/data/processed/premier_league"
+)
 
 REQUIRED_COLUMNS = {
     "Date",
@@ -110,7 +119,7 @@ def transform_data(df):
         "season",
         regexp_extract(
             col("source_file"),
-            r"(\d{4}-\d{2})\.csv",
+            r"(\d{4}-\d{2})",
             1
         )
     )
