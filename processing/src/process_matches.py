@@ -29,6 +29,10 @@ def create_spark_session():
         SparkSession.builder
         .appName("football-data-processing")
         .master("local[*]")
+        .config(
+            "spark.jars.packages",
+            "org.apache.hadoop:hadoop-aws:3.4.1"
+        )
         .getOrCreate()
     )
 

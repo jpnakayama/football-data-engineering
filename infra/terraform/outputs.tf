@@ -12,3 +12,8 @@ output "aws_region" {
   description = "Região AWS utilizada"
   value       = var.aws_region
 }
+
+output "ubuntu_ami_id" {
+  description = "AMI Ubuntu utilizada pela EC2"
+  value       = data.aws_ami.ubuntu.id
+}
