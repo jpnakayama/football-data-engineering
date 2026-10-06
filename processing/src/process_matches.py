@@ -141,12 +141,16 @@ def main():
     try:
         print("Iniciando processamento da Premier League...")
 
-        df_raw = (
+        reader = (
             spark.read
             .option("header", True)
             .option("inferSchema", True)
-            .csv(RAW_PATH)
         )
+
+        if RAW_PATH.startswith("s3a://"):
+            reader = reader.option("recursiveFileLookup", "true")
+
+        df = reader.csv(RAW_PATH)
 
         print(f"Quantidade de registros raw: {df_raw.count()}")
 
