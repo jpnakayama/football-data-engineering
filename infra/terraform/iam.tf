@@ -76,7 +76,9 @@ data "aws_iam_policy_document" "pipeline_s3" {
     effect = "Allow"
 
     actions = [
-      "s3:PutObject"
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:DeleteObject"
     ]
 
     resources = [

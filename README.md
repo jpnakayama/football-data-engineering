@@ -498,3 +498,47 @@ O projeto prioriza:
 - segurança no acesso aos recursos AWS;
 - controle de custos em cloud;
 - evolução incremental da arquitetura.
+
+## Pipeline AWS — Execução validada
+
+O projeto possui um pipeline de Engenharia de Dados executado na AWS, utilizando infraestrutura provisionada com Terraform, processamento em PySpark dentro de um container Docker na EC2 e armazenamento no Amazon S3.
+
+### Fluxo de processamento
+
+1. Leitura dos arquivos CSV da Premier League armazenados na camada `raw/` do S3.
+2. Validação da estrutura e da qualidade dos dados.
+3. Transformação e padronização dos dados com PySpark.
+4. Gravação dos resultados em formato Parquet, com compressão Snappy e particionamento por temporada, na camada `processed/` do S3.
+5. Leitura dos arquivos Parquet para validação dos resultados.
+
+### Resultados validados
+
+| Temporada | Registros |
+|---|---:|
+| 2022-23 | 380 |
+| 2023-24 | 380 |
+| 2024-25 | 380 |
+| 2025-26 | 380 |
+| **Total** | **1.520** |
+
+A execução foi concluída com sucesso, com confirmação do arquivo `_SUCCESS` e validação das contagens diretamente nos arquivos Parquet.
+
+### Infraestrutura e segurança
+
+- Infraestrutura gerenciada com Terraform.
+- EC2 Ubuntu executando Docker e PySpark.
+- Acesso ao S3 por meio de IAM Role, sem credenciais AWS fixas no container.
+- Permissões de leitura na camada `raw/`.
+- Permissões de leitura, escrita e exclusão na camada `processed/`.
+- Acesso à EC2 pelo AWS Systems Manager Session Manager.
+
+### Qualidade e testes
+
+O projeto possui sete testes automatizados com Pytest, todos aprovados. O processamento também realiza validações de colunas obrigatórias, datas, valores nulos e resultados das partidas.
+
+### Próximos passos
+
+- Automatizar a execução do pipeline.
+- Implementar monitoramento e logging estruturado.
+- Evoluir as validações de qualidade dos dados.
+- Preparar os dados para análises e modelos de Machine Learning.
