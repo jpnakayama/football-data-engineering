@@ -150,7 +150,7 @@ def main():
         if RAW_PATH.startswith("s3a://"):
             reader = reader.option("recursiveFileLookup", "true")
 
-        df = reader.csv(RAW_PATH)
+        df_raw = reader.csv(RAW_PATH)
 
         print(f"Quantidade de registros raw: {df_raw.count()}")
 
