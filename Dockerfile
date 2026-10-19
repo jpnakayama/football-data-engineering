@@ -9,7 +9,10 @@ RUN apt-get update \
 
 RUN pip install --no-cache-dir \
     pyspark==4.0.1 \
-    pytest==8.4.2
+    pytest==8.4.2 \
+    pandas==2.3.3 \
+    pyarrow==21.0.0 \
+    scikit-learn==1.7.2
 
 WORKDIR /app
 
