@@ -1,360 +1,146 @@
 # Football Data Engineering & ML Platform
 
-Projeto de Engenharia de Dados desenvolvido com o objetivo de aplicar, na prática, conceitos de infraestrutura como código, cloud computing, ingestão, processamento, qualidade e transformação de dados.
+Projeto prático de Engenharia de Dados que utiliza partidas históricas da **Premier League** para construir um pipeline reproduzível de ingestão, validação, transformação e disponibilização de dados. A infraestrutura de processamento foi provisionada na AWS com Terraform; a evolução do projeto inclui uma aplicação analítica e previsão de resultados de partidas.
 
-O projeto utiliza dados históricos da Premier League e será evoluído gradualmente até a construção de uma plataforma de dados com processamento em cloud e aplicação de Machine Learning.
+O foco é **resolver um problema de ponta a ponta**, utilizando tecnologias quando elas agregam valor, com atenção à qualidade dos dados, testes, segurança e custos.
 
-## Objetivo
+## Objetivos
 
-Construir um pipeline de dados reproduzível capaz de:
+- Obter e preservar dados históricos de partidas da Premier League.
+- Armazenar os dados brutos (`raw`) no Amazon S3.
+- Validar e transformar os dados com PySpark em ambiente Docker.
+- Gerar dados processados em Parquet, particionados por temporada.
+- Provisionar e executar o processamento na AWS usando Terraform, EC2, IAM e S3.
+- Preparar conjuntos de dados analíticos para dashboards e, futuramente, Machine Learning.
+- Evoluir para uma aplicação de consulta de estatísticas e previsão probabilística de resultados.
 
-1. Coletar dados históricos de partidas da Premier League;
-2. Armazenar os dados brutos em um Data Lake no Amazon S3;
-3. Validar a qualidade dos dados antes do processamento;
-4. Processar e transformar os dados utilizando PySpark;
-5. Armazenar os dados processados em formato Parquet;
-6. Executar o processamento de forma reproduzível utilizando Docker;
-7. Provisionar a infraestrutura AWS utilizando Terraform;
-8. Evoluir posteriormente para Feature Engineering e Machine Learning.
+## Estado atual
 
----
+| Entrega | Estado |
+|---|---|
+| Pipeline local de ingestão, validação e processamento | Concluído |
+| Infraestrutura AWS provisionada com Terraform | Concluído |
+| Processamento Raw → Processed executado na EC2, com S3 | Concluído |
+| Data Profiling de quatro temporadas | Concluído |
+| Dataset analítico `team_season_stats` | Concluído localmente |
+| Testes automatizados | **13 aprovados** |
+| Features históricas para ML | Planejado |
+| Dashboard e aplicação de previsões | Planejados |
 
-## Arquitetura atual
+**Resultados atuais:** 1.520 partidas, quatro temporadas completas (2022-23 a 2025-26), 20 equipes por temporada e 80 registros no dataset de estatísticas por equipe/temporada.
+
+> A camada `analytics/` foi gerada e testada **localmente**. Sua execução e publicação no S3 ainda não foram integradas ao pipeline AWS.
+
+## Arquitetura
 
 ```text
 Football-Data.co.uk
-        │
-        ▼
-Python - Ingestão
-        │
-        ├──────────────────────────────► Amazon S3
-        │                                  │
-        │                                  └── raw/
-        │
-        ▼
-CSV Raw local
-        │
-        ▼
-Docker
-        │
-        ▼
-PySpark
-        │
-        ├── Data Quality
-        │   ├── colunas obrigatórias
-        │   ├── datas válidas
-        │   ├── gols não nulos
-        │   └── resultados H / D / A
-        │
-        ▼
-Transformação
-        │
-        ▼
-Parquet
-        │
-        ▼
-Particionamento por temporada
-        │
-        ▼
-Processed local
-
-pytest
-  │
-  └── 7 testes automatizados
+        |
+        v
+Scripts Python de ingestão
+        |
+        +--------------------> Amazon S3 / raw/
+        |                            |
+        v                            |
+CSV local                           |
+        |                            |
+        +------------+---------------+
+                     |
+                     v
+           Docker + PySpark
+           (local ou EC2)
+                     |
+              Data Quality
+                     |
+                     v
+             Parquet / processed/
+             (local e Amazon S3)
+                     |
+                     v
+           Data Profiling (local)
+                     |
+                     v
+        Parquet / analytics/ (local)
+        team_season_stats
+                     |
+           +---------+---------+
+           |                   |
+           v                   v
+    Dashboard (futuro)   Features + ML (futuro)
 ```
 
-Atualmente, a camada Raw já está armazenada no Amazon S3. O processamento PySpark ainda é executado localmente dentro de um container Docker.
+O processamento na EC2 utiliza acesso ao S3 via **IAM Role**, sem credenciais estáticas embutidas no container. A camada analítica está sendo desenvolvida localmente antes de sua integração à nuvem.
 
-A próxima etapa será levar esse mesmo ambiente de processamento para uma instância EC2.
-
----
-
-## Estrutura do projeto
+## Estrutura principal do repositório
 
 ```text
 football-data-engineering/
-│
-├── data/
-│   ├── raw/
-│   │   └── premier_league/
-│   │       ├── 2022-23.csv
-│   │       ├── 2023-24.csv
-│   │       ├── 2024-25.csv
-│   │       └── 2025-26.csv
-│   │
-│   └── processed/
-│       └── premier_league/
-│
+├── Dockerfile
 ├── processing/
-│   ├── Dockerfile
 │   └── src/
-│       └── process_matches.py
-│
+│       ├── process_matches.py
+│       ├── profile_matches.py
+│       └── build_team_stats.py
 ├── scripts/
 │   ├── download_data.py
 │   ├── validate_data.py
 │   └── upload_raw_to_s3.py
-│
 ├── tests/
-│   └── test_process_matches.py
-│
-├── terraform/
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── variables.tf
-│   └── .terraform.lock.hcl
-│
+│   ├── conftest.py
+│   ├── test_process_matches.py
+│   └── test_build_team_stats.py
+├── terraform/                  # Infraestrutura AWS (arquivos .tf)
+├── data/                       # Dados locais; não versionar
+│   ├── raw/premier_league/
+│   ├── processed/premier_league/
+│   └── analytics/team_season_stats/
 ├── .dockerignore
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
 
-Os diretórios locais de dados e arquivos de estado do Terraform não são versionados no Git.
-
----
+A listagem apresenta os principais arquivos conhecidos do projeto, não necessariamente todos os arquivos existentes no repositório. **O Dockerfile está na raiz**; sua localização anterior em `processing/` foi descontinuada.
 
 ## Fonte dos dados
 
-Os dados utilizados são disponibilizados pelo Football-Data.co.uk e correspondem a partidas da Premier League.
+Os arquivos CSV são obtidos de [Football-Data.co.uk](https://www.football-data.co.uk/), para as temporadas:
 
-Temporadas utilizadas inicialmente:
+- 2022-23
+- 2023-24
+- 2024-25
+- 2025-26
 
-- 2022/23
-- 2023/24
-- 2024/25
-- 2025/26
+Cada temporada contém 380 partidas, totalizando **1.520**. Os arquivos de origem são preservados na camada `raw`.
 
-Os arquivos são obtidos em formato CSV e mantidos sem transformação na camada Raw.
+## Data Lake e infraestrutura AWS
 
----
-
-## Data Lake
-
-O Data Lake inicial foi provisionado no Amazon S3 utilizando Terraform.
-
-Estrutura da camada Raw:
+Bucket de desenvolvimento: `s3://football-data-engineering-dev/`.
 
 ```text
 s3://football-data-engineering-dev/
-└── raw/
+├── raw/
+│   └── premier_league/
+│       ├── season=2022-23/matches.csv
+│       ├── season=2023-24/matches.csv
+│       ├── season=2024-25/matches.csv
+│       └── season=2025-26/matches.csv
+└── processed/
     └── premier_league/
-        ├── season=2022-23/
-        │   └── matches.csv
-        ├── season=2023-24/
-        │   └── matches.csv
-        ├── season=2024-25/
-        │   └── matches.csv
-        └── season=2025-26/
-            └── matches.csv
+        └── season=.../part-*.snappy.parquet
 ```
 
-O bucket possui:
+O bucket possui bloqueio de acesso público e versionamento habilitado. A infraestrutura é gerenciada com Terraform e inclui:
 
-- bloqueio de acesso público;
-- versionamento habilitado;
-- gerenciamento por Terraform.
+- Amazon S3 para armazenamento.
+- Instância EC2 Ubuntu para execução do container.
+- IAM Role e Instance Profile para acesso aos recursos necessários.
+- Security Group para controle de rede.
+- AWS Systems Manager Session Manager para acesso à instância.
 
-A camada Raw preserva os dados recebidos da fonte. Limpeza, tipagem e transformação são realizadas somente durante a geração da camada Processed.
+O processamento **Raw → Processed foi executado e validado na AWS**. Os arquivos Parquet foram gravados no S3, com compressão Snappy e particionamento por temporada. A EC2 foi desligada após a execução para reduzir custos de computação; armazenamento S3/EBS e outros recursos podem continuar gerando cobranças.
 
----
-
-## Ingestão
-
-A ingestão é dividida em três etapas:
-
-```text
-download_data.py
-       │
-       ▼
-Download dos CSVs
-       │
-       ▼
-validate_data.py
-       │
-       ▼
-Validação inicial
-       │
-       ▼
-upload_raw_to_s3.py
-       │
-       ▼
-Amazon S3 / Raw
-```
-
-Essa separação mantém responsabilidades distintas para aquisição, validação e armazenamento dos dados.
-
----
-
-## Processamento com PySpark
-
-O processamento é realizado utilizando PySpark dentro de um container Docker.
-
-O pipeline:
-
-1. Lê os arquivos CSV da camada Raw;
-2. Valida a estrutura e a qualidade dos dados;
-3. Identifica a temporada de cada partida;
-4. Seleciona os campos relevantes;
-5. Padroniza os nomes das colunas;
-6. Converte os tipos de dados;
-7. Grava o resultado em formato Parquet;
-8. Particiona os dados por temporada.
-
-O schema processado contém inicialmente:
-
-```text
-season
-match_date
-home_team
-away_team
-home_goals
-away_goals
-result
-```
-
-O resultado é armazenado localmente em:
-
-```text
-data/processed/premier_league/
-├── season=2022-23/
-├── season=2023-24/
-├── season=2024-25/
-└── season=2025-26/
-```
-
----
-
-## Data Quality
-
-Antes de gerar a camada Processed, o pipeline executa validações de qualidade.
-
-São verificadas:
-
-- presença das colunas obrigatórias;
-- validade das datas;
-- existência de gols nulos;
-- validade do resultado da partida.
-
-Os resultados aceitos são:
-
-```text
-H = vitória do time mandante
-D = empate
-A = vitória do time visitante
-```
-
-Caso alguma regra seja violada, o processamento é interrompido antes da escrita da camada Processed.
-
-Dessa forma, dados que não atendam aos requisitos mínimos de qualidade não são propagados para as etapas seguintes do pipeline.
-
----
-
-## Docker
-
-Docker é utilizado para tornar o ambiente de processamento reproduzível e independente da máquina hospedeira.
-
-A imagem contém:
-
-```text
-Python 3.12
-+
-Java 21
-+
-PySpark 4.0.1
-+
-Código de processamento
-```
-
-Isso permite utilizar essencialmente o mesmo ambiente durante o desenvolvimento local e, futuramente, na instância EC2.
-
-Os dados não são incorporados à imagem Docker. Durante a execução local, o diretório `data/` é disponibilizado ao container através de um volume.
-
----
-
-## Testes automatizados
-
-As regras de qualidade e transformação são testadas utilizando Pytest.
-
-Atualmente existem 7 testes automatizados:
-
-1. Dataset contendo todas as colunas obrigatórias;
-2. Detecção de coluna obrigatória ausente;
-3. Dataset válido;
-4. Detecção de data inválida;
-5. Detecção de gols nulos;
-6. Detecção de resultado diferente de `H`, `D` ou `A`;
-7. Validação da estrutura resultante da transformação.
-
-Os testes utilizam pequenos DataFrames PySpark criados especificamente para cada cenário, sem depender dos arquivos reais da Premier League.
-
----
-
-## Execução local
-
-### Criar a imagem Docker
-
-Na raiz do projeto:
-
-```bash
-docker build -t football-pyspark -f processing/Dockerfile .
-```
-
-### Executar os testes
-
-```bash
-docker run --rm football-pyspark pytest -v
-```
-
-Resultado esperado:
-
-```text
-7 passed
-```
-
-### Executar o processamento
-
-PowerShell:
-
-```powershell
-docker run --rm `
-  -v "${PWD}/data:/data" `
-  football-pyspark
-```
-
-Ao final da execução, os arquivos Parquet são disponibilizados em:
-
-```text
-data/processed/premier_league/
-```
-
-### Verificar containers em execução
-
-```bash
-docker ps
-```
-
-Os containers utilizados pelo projeto são executados com `--rm`, portanto são removidos automaticamente após o término do processamento.
-
----
-
-## Infraestrutura como Código
-
-A infraestrutura AWS é gerenciada utilizando Terraform.
-
-Atualmente o Terraform provisiona:
-
-```text
-Terraform
-   │
-   ▼
-Amazon S3
-   │
-   └── Data Lake
-```
-
-Principais comandos:
+Comandos usuais do Terraform, executados no diretório correspondente à configuração:
 
 ```bash
 terraform init
@@ -363,182 +149,153 @@ terraform plan
 terraform apply
 ```
 
-Os arquivos de estado (`*.tfstate`) e configurações locais não são enviados para o Git.
+**Atenção:** revisar o plano e os custos antes de executar `terraform apply`. Arquivos de estado, segredos e configurações locais sensíveis não devem ser versionados.
 
----
+## Processamento Raw → Processed
+
+O script `processing/src/process_matches.py`:
+
+1. Lê os CSVs da camada Raw (local ou `s3a://`, conforme as variáveis de ambiente).
+2. Verifica colunas obrigatórias, datas, gols nulos e resultados permitidos (`H`, `D`, `A`).
+3. Extrai a temporada do caminho do arquivo.
+4. Padroniza nomes e tipos.
+5. Escreve Parquet particionado por `season`.
+
+Schema de saída:
+
+| Campo | Significado |
+|---|---|
+| `season` | Temporada |
+| `match_date` | Data da partida |
+| `home_team` | Mandante |
+| `away_team` | Visitante |
+| `home_goals` | Gols do mandante |
+| `away_goals` | Gols do visitante |
+| `result` | `H` (mandante), `D` (empate), `A` (visitante) |
+
+As validações de consistência mais amplas foram realizadas no Data Profiling. Nem todas elas estão ainda incorporadas à função de validação do pipeline Raw → Processed.
+
+## Data Profiling
+
+O script `processing/src/profile_matches.py` lê os arquivos da camada Processed **sem alterá-los** e verifica:
+
+- Schema e total de registros.
+- Quantidade de partidas, equipes e intervalo de datas por temporada.
+- Distribuição dos resultados.
+- Partidas duplicadas.
+- Valores nulos e gols negativos.
+- Coerência entre resultado e placar.
+- Quantidade de jogos por equipe (38, sendo 19 em casa e 19 fora).
+- Partidas em que mandante e visitante são a mesma equipe.
+
+**Resultado da inspeção:** 1.520 partidas, 380 por temporada, 20 equipes por temporada e **nenhuma inconsistência identificada nas regras verificadas**. Isso não substitui uma comparação integral com fontes oficiais.
+
+## Camada Analytics
+
+O script `processing/src/build_team_stats.py` lê os Parquets processados e constrói o dataset **`team_season_stats`**, com uma linha por equipe e temporada.
+
+Para cada partida, cria duas perspectivas (mandante e visitante) com `unionByName()`; depois consolida os registros por equipe e temporada.
+
+Campos gerados:
+
+| Campo | Descrição |
+|---|---|
+| `season`, `team` | Temporada e equipe |
+| `matches` | Jogos disputados |
+| `wins`, `draws`, `losses` | Vitórias, empates e derrotas |
+| `goals_for`, `goals_against` | Gols marcados e sofridos |
+| `goal_difference` | Saldo de gols |
+| `points` | Pontos: 3 por vitória, 1 por empate |
+| `points_percentage` | Pontos obtidos / pontos possíveis × 100 |
+| `home_matches`, `away_matches` | Jogos em casa e fora |
+| `home_wins`, `away_wins` | Vitórias em casa e fora |
+
+**Saída local:** `data/analytics/team_season_stats/`, em Parquet particionado por temporada, com **80 registros**.
+
+A pontuação é calculada a partir dos resultados das partidas, sem incorporar eventuais punições administrativas. Essa tabela consolida a **temporada completa**: serve para análises retrospectivas, mas **não deve ser usada diretamente para prever partidas da própria temporada**, pois isso causaria vazamento de informação (*data leakage*).
+
+## Testes automatizados
+
+Os testes usam Pytest e pequenos DataFrames PySpark criados em memória, sem depender dos arquivos históricos.
+
+**13 testes aprovados:**
+
+- **7 testes** de processamento: colunas obrigatórias, ausência de colunas, dados válidos, data inválida, gols nulos, resultado inválido e schema transformado.
+- **6 testes** analíticos: quantidade de equipes, jogos por equipe, cálculo de pontos, saldo de gols, equilíbrio global entre gols marcados e sofridos e contagem de jogos em casa/fora.
+
+A fixture de sessão Spark é compartilhada em `tests/conftest.py`.
+
+## Execução local com Docker
+
+Os comandos abaixo foram preparados para **PowerShell**, a partir da **raiz do repositório**, com Docker Desktop disponível. O Dockerfile instala Python 3.12, Java 21, PySpark 4.0.1 e Pytest 8.4.2.
+
+### 1. Construir a imagem
+
+```powershell
+docker build -t football-data-pipeline .
+```
+
+### 2. Executar os testes
+
+```powershell
+docker run --rm football-data-pipeline python -m pytest tests/ -v
+```
+
+Resultado mais recente: `13 passed`.
+
+### 3. Processar CSVs para Parquet
+
+```powershell
+docker run --rm -v "${PWD}/data:/data" football-data-pipeline
+```
+
+> O processamento utiliza `mode("overwrite")`: essa execução regrava a saída Processed. Confirme os arquivos de origem antes de executá-la.
+
+### 4. Inspecionar os dados processados
+
+```powershell
+docker run --rm -v "${PWD}/data:/data" football-data-pipeline python /app/src/profile_matches.py
+```
+
+### 5. Construir o dataset analítico
+
+```powershell
+docker run --rm -v "${PWD}/data:/data" football-data-pipeline python /app/src/build_team_stats.py
+```
+
+A saída será gravada em `data/analytics/team_season_stats/`. Essa etapa também usa `overwrite` em sua própria saída.
+
+### 6. Conferir containers ativos
+
+```powershell
+docker ps
+```
+
+Os containers executados com `--rm` são removidos automaticamente ao término. A pasta `data/` é montada como volume; os dados permanecem no computador após a execução.
 
 ## Tecnologias utilizadas
 
-### Engenharia de Dados
+| Área | Tecnologias |
+|---|---|
+| Linguagem e processamento | Python, PySpark |
+| Formato de armazenamento | CSV, Parquet (Snappy) |
+| Infraestrutura | Terraform, AWS EC2, S3, IAM, Systems Manager |
+| Ambiente | Docker |
+| Qualidade e testes | Validações de dados, Data Profiling, Pytest |
+| Versionamento | Git, GitHub |
 
-- Python
-- PySpark
-- Pandas
-- Parquet
+Machine Learning, interface web e ferramentas de visualização ainda fazem parte do **planejamento**, não da implementação concluída.
 
-### Qualidade e testes
+## Próximas etapas
 
-- Pytest
-- Validações de Data Quality
+1. **Feature Engineering:** gerar indicadores anteriores a cada partida (forma recente, gols, desempenho como mandante/visitante), sem utilizar dados futuros.
+2. **Avaliação preditiva:** separar treino e teste cronologicamente, estabelecer uma baseline e comparar modelos de classificação probabilística de vitória/empate/derrota.
+3. **Dashboard:** explorar desempenho por equipe, temporada e local da partida.
+4. **Aplicação web:** integrar análises e previsões em uma interface.
+5. **Operacionalização:** integrar a camada Analytics ao fluxo AWS e automatizar atualizações quando houver necessidade concreta, com monitoramento e controle de custos.
 
-### Cloud
-
-- AWS
-- Amazon S3
-- AWS CLI
-
-### Infraestrutura e ambiente
-
-- Terraform
-- Docker
-- Git
-- GitHub
-
----
-
-## Status do projeto
-
-- [x] Estrutura inicial do projeto
-- [x] Infraestrutura inicial com Terraform
-- [x] Data Lake Raw no Amazon S3
-- [x] Download dos dados da Premier League
-- [x] Validação inicial da ingestão
-- [x] Upload da camada Raw para S3
-- [x] Ambiente reproduzível com Docker
-- [x] Processamento com PySpark
-- [x] Validações de Data Quality
-- [x] Conversão para Parquet
-- [x] Particionamento por temporada
-- [x] Testes automatizados com Pytest
-- [ ] Provisionamento de EC2 com Terraform
-- [ ] IAM Role e Instance Profile para EC2
-- [ ] Configuração de Security Group
-- [ ] Execução do container Docker na EC2
-- [ ] Leitura direta da camada Raw no S3
-- [ ] Escrita da camada Processed no S3
-- [ ] Feature Engineering
-- [ ] Modelo de Machine Learning
-- [ ] Armazenamento das predições
-- [ ] Monitoramento do pipeline
-
----
-
-## Próxima etapa: processamento na AWS
-
-A próxima evolução do projeto será migrar a execução do processamento para AWS sem reescrever a lógica já validada localmente.
-
-Arquitetura planejada:
-
-```text
-                    AWS
-                     │
-          ┌──────────┴──────────┐
-          │                     │
-          ▼                     ▼
-      Amazon S3                EC2
-          │                     │
-       Raw Data              Docker
-          │                     │
-          └────────────────► PySpark
-                                │
-                                ▼
-                           Amazon S3
-                                │
-                           Processed
-```
-
-A infraestrutura será provisionada com Terraform e deverá incluir:
-
-```text
-Terraform
-├── S3
-├── EC2
-├── IAM Role
-├── Instance Profile
-└── Security Group
-```
-
-A EC2 receberá acesso ao S3 através de uma IAM Role, evitando o armazenamento de Access Keys dentro da instância ou do container.
-
-O objetivo será executar:
-
-```text
-S3 Raw
-   ↓
-EC2
-   ↓
-Docker
-   ↓
-PySpark
-   ↓
-Data Quality
-   ↓
-Transformação
-   ↓
-Parquet
-   ↓
-S3 Processed
-```
-
-Após essa etapa, o projeto avançará para Feature Engineering e Machine Learning.
-
----
+A evolução da infraestrutura será guiada pelas necessidades do produto, sem adicionar serviços apenas para ampliar a lista de tecnologias.
 
 ## Contexto
 
-Este projeto faz parte dos estudos de uma Pós-Graduação em Engenharia de Dados e tem como objetivo consolidar conhecimentos através da construção incremental de uma solução completa.
-
-O projeto prioriza:
-
-- aplicação prática dos conceitos estudados;
-- infraestrutura reproduzível;
-- separação de responsabilidades;
-- qualidade de dados;
-- testes automatizados;
-- segurança no acesso aos recursos AWS;
-- controle de custos em cloud;
-- evolução incremental da arquitetura.
-
-## Pipeline AWS — Execução validada
-
-O projeto possui um pipeline de Engenharia de Dados executado na AWS, utilizando infraestrutura provisionada com Terraform, processamento em PySpark dentro de um container Docker na EC2 e armazenamento no Amazon S3.
-
-### Fluxo de processamento
-
-1. Leitura dos arquivos CSV da Premier League armazenados na camada `raw/` do S3.
-2. Validação da estrutura e da qualidade dos dados.
-3. Transformação e padronização dos dados com PySpark.
-4. Gravação dos resultados em formato Parquet, com compressão Snappy e particionamento por temporada, na camada `processed/` do S3.
-5. Leitura dos arquivos Parquet para validação dos resultados.
-
-### Resultados validados
-
-| Temporada | Registros |
-|---|---:|
-| 2022-23 | 380 |
-| 2023-24 | 380 |
-| 2024-25 | 380 |
-| 2025-26 | 380 |
-| **Total** | **1.520** |
-
-A execução foi concluída com sucesso, com confirmação do arquivo `_SUCCESS` e validação das contagens diretamente nos arquivos Parquet.
-
-### Infraestrutura e segurança
-
-- Infraestrutura gerenciada com Terraform.
-- EC2 Ubuntu executando Docker e PySpark.
-- Acesso ao S3 por meio de IAM Role, sem credenciais AWS fixas no container.
-- Permissões de leitura na camada `raw/`.
-- Permissões de leitura, escrita e exclusão na camada `processed/`.
-- Acesso à EC2 pelo AWS Systems Manager Session Manager.
-
-### Qualidade e testes
-
-O projeto possui sete testes automatizados com Pytest, todos aprovados. O processamento também realiza validações de colunas obrigatórias, datas, valores nulos e resultados das partidas.
-
-### Próximos passos
-
-- Automatizar a execução do pipeline.
-- Implementar monitoramento e logging estruturado.
-- Evoluir as validações de qualidade dos dados.
-- Preparar os dados para análises e modelos de Machine Learning.
+Projeto desenvolvido como prática de uma **Pós-Graduação em Engenharia de Dados**, com foco em aprendizagem incremental, infraestrutura reproduzível, separação de responsabilidades, qualidade, segurança e uso responsável de recursos em nuvem.
