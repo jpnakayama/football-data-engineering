@@ -1,119 +1,148 @@
 # Football Data Engineering & ML Platform
 
-Projeto prático de Engenharia de Dados que utiliza partidas históricas da **Premier League** para construir um pipeline reproduzível de ingestão, validação, transformação e disponibilização de dados. A infraestrutura de processamento foi provisionada na AWS com Terraform; a evolução do projeto inclui uma aplicação analítica e previsão de resultados de partidas.
+Projeto prático de **Engenharia de Dados** desenvolvido durante uma pós-graduação, utilizando dados históricos da **Premier League** para demonstrar um fluxo de ponta a ponta: ingestão, armazenamento, validação, processamento, preparação analítica, Machine Learning e consumo dos dados em uma aplicação web.
 
-O foco é **resolver um problema de ponta a ponta**, utilizando tecnologias quando elas agregam valor, com atenção à qualidade dos dados, testes, segurança e custos.
+O foco principal é a **infraestrutura reproduzível com Terraform e AWS** e o processamento de dados com **Docker e PySpark**. O dashboard e as previsões são uma demonstração do uso dos dados produzidos pelo pipeline, sem a pretensão de constituir uma plataforma esportiva em produção.
 
 ## Objetivos
 
-- Obter e preservar dados históricos de partidas da Premier League.
-- Armazenar os dados brutos (`raw`) no Amazon S3.
-- Validar e transformar os dados com PySpark em ambiente Docker.
-- Gerar dados processados em Parquet, particionados por temporada.
-- Provisionar e executar o processamento na AWS usando Terraform, EC2, IAM e S3.
-- Preparar conjuntos de dados analíticos para dashboards e, futuramente, Machine Learning.
-- Evoluir para uma aplicação de consulta de estatísticas e previsão probabilística de resultados.
+- Ingerir e preservar dados históricos de partidas da Premier League.
+- Provisionar infraestrutura AWS utilizando Terraform.
+- Armazenar dados brutos e processados no Amazon S3.
+- Validar, padronizar e transformar dados com PySpark em containers Docker.
+- Produzir datasets analíticos e features históricas em Parquet.
+- Treinar e avaliar modelos de classificação de resultados de partidas.
+- Disponibilizar estatísticas e probabilidades em uma aplicação Streamlit local.
+- Priorizar simplicidade, segurança, rastreabilidade e controle de custos.
 
-## Estado atual
+## Estado final do projeto
 
-| Entrega | Estado |
+| Entrega | Situação |
 |---|---|
-| Pipeline local de ingestão, validação e processamento | Concluído |
-| Infraestrutura AWS provisionada com Terraform | Concluído |
-| Processamento Raw → Processed executado na EC2, com S3 | Concluído |
-| Data Profiling de quatro temporadas | Concluído |
+| Ingestão e validação de arquivos CSV | Concluída |
+| Infraestrutura AWS provisionada com Terraform | Concluída |
+| Processamento Raw → Processed na EC2 com S3 | Executado e validado |
+| Data Profiling das partidas | Concluído |
 | Dataset analítico `team_season_stats` | Concluído localmente |
-| Testes automatizados | **13 aprovados** |
-| Features históricas para ML | Planejado |
-| Dashboard e aplicação de previsões | Planejados |
+| Histórico por equipe e features pré-partida | Concluídos localmente |
+| Treinamento e avaliação de modelos de ML | Concluídos localmente |
+| Modelo Random Forest salvo em Joblib | Concluído |
+| Dashboard histórico e previsão de partidas no Streamlit | Concluídos localmente |
+| Implantação do Streamlit na AWS | Fora do escopo |
 
-**Resultados atuais:** 1.520 partidas, quatro temporadas completas (2022-23 a 2025-26), 20 equipes por temporada e 80 registros no dataset de estatísticas por equipe/temporada.
+**Volume utilizado:** quatro temporadas identificadas como 2022-23, 2023-24, 2024-25 e 2025-26, totalizando **1.520 partidas** no dataset utilizado, com 380 partidas por temporada.
 
-> A camada `analytics/` foi gerada e testada **localmente**. Sua execução e publicação no S3 ainda não foram integradas ao pipeline AWS.
+> **Escopo de execução:** o processamento Raw → Processed foi executado e validado na AWS. As etapas de Analytics, Feature Engineering, treinamento de ML e aplicação Streamlit foram desenvolvidas e executadas localmente. Não há alegação de que toda a aplicação esteja implantada na AWS.
 
 ## Arquitetura
 
 ```text
-Football-Data.co.uk
-        |
-        v
-Scripts Python de ingestão
-        |
-        +--------------------> Amazon S3 / raw/
-        |                            |
-        v                            |
-CSV local                           |
-        |                            |
-        +------------+---------------+
-                     |
-                     v
-           Docker + PySpark
-           (local ou EC2)
-                     |
-              Data Quality
-                     |
-                     v
-             Parquet / processed/
-             (local e Amazon S3)
-                     |
-                     v
-           Data Profiling (local)
-                     |
-                     v
-        Parquet / analytics/ (local)
-        team_season_stats
-                     |
-           +---------+---------+
-           |                   |
-           v                   v
-    Dashboard (futuro)   Features + ML (futuro)
+Football-Data.co.uk (CSV)
+          |
+          v
+Scripts Python de ingestão e validação
+          |
+          +-----------------------> Amazon S3 / raw/
+          |                                  |
+          v                                  |
+     Dados Raw locais                        |
+          |                                  |
+          +---------------+------------------+
+                          |
+                          v
+                 Docker + PySpark
+                 (local ou EC2)
+                          |
+                          v
+                  Data Quality
+                          |
+                          v
+                 Parquet / processed/
+                  (local e S3)
+                          |
+             +------------+-------------+
+             |                          |
+             v                          v
+      Data Profiling              Preparação analítica
+             |                    (PySpark local)
+             |                          |
+             |                +---------+----------+
+             |                |                    |
+             |                v                    v
+             |         team_season_stats    team_match_history
+             |                |                    |
+             |                |                    v
+             |                |              match_features
+             |                |                    |
+             |                |                    v
+             |                |              Treinamento ML
+             |                |                    |
+             |                |                    v
+             |                |           football_model.joblib
+             |                |                    |
+             +----------------+--------------------+
+                              |
+                              v
+                       Streamlit local
+                  Dashboard + previsões
 ```
 
-O processamento na EC2 utiliza acesso ao S3 via **IAM Role**, sem credenciais estáticas embutidas no container. A camada analítica está sendo desenvolvida localmente antes de sua integração à nuvem.
+Na AWS, o acesso da EC2 ao S3 utiliza **IAM Role / Instance Profile**, evitando credenciais estáticas no container. O **AWS Systems Manager Session Manager** foi utilizado para acessar a instância.
 
 ## Estrutura principal do repositório
 
 ```text
 football-data-engineering/
-├── Dockerfile
+├── app/
+│   ├── data_loader.py
+│   ├── prediction.py
+│   └── streamlit_app.py
 ├── processing/
 │   └── src/
 │       ├── process_matches.py
 │       ├── profile_matches.py
-│       └── build_team_stats.py
+│       ├── build_team_stats.py
+│       ├── build_match_features.py
+│       └── train_model.py
 ├── scripts/
 │   ├── download_data.py
 │   ├── validate_data.py
 │   └── upload_raw_to_s3.py
 ├── tests/
-│   ├── conftest.py
-│   ├── test_process_matches.py
-│   └── test_build_team_stats.py
-├── terraform/                  # Infraestrutura AWS (arquivos .tf)
+├── terraform/                  # Infraestrutura AWS (.tf)
 ├── data/                       # Dados locais; não versionar
 │   ├── raw/premier_league/
 │   ├── processed/premier_league/
-│   └── analytics/team_season_stats/
+│   ├── analytics/team_season_stats/
+│   └── features/
+│       ├── team_match_history/
+│       └── match_features/
+├── models/
+│   └── football_model.joblib   # Artefato treinado localmente
+├── Dockerfile
 ├── .dockerignore
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
 
-A listagem apresenta os principais arquivos conhecidos do projeto, não necessariamente todos os arquivos existentes no repositório. **O Dockerfile está na raiz**; sua localização anterior em `processing/` foi descontinuada.
+A árvore destaca os arquivos principais. Os diretórios `data/` e `models/` representam artefatos locais e devem seguir a política de versionamento definida para o repositório.
 
 ## Fonte dos dados
 
-Os arquivos CSV são obtidos de [Football-Data.co.uk](https://www.football-data.co.uk/), para as temporadas:
+Os arquivos CSV de partidas foram obtidos de [Football-Data.co.uk](https://www.football-data.co.uk/) e preservados na camada `raw`.
 
-- 2022-23
-- 2023-24
-- 2024-25
-- 2025-26
+| Temporada | Partidas no dataset |
+|---|---:|
+| 2022-23 | 380 |
+| 2023-24 | 380 |
+| 2024-25 | 380 |
+| 2025-26 | 380 |
+| **Total** | **1.520** |
 
-Cada temporada contém 380 partidas, totalizando **1.520**. Os arquivos de origem são preservados na camada `raw`.
+O projeto utiliza os dados históricos disponíveis nos arquivos processados; **não possui atualização automática nem previsão baseada em dados ao vivo**.
 
-## Data Lake e infraestrutura AWS
+## Infraestrutura AWS e Data Lake
 
 Bucket de desenvolvimento: `s3://football-data-engineering-dev/`.
 
@@ -121,26 +150,27 @@ Bucket de desenvolvimento: `s3://football-data-engineering-dev/`.
 s3://football-data-engineering-dev/
 ├── raw/
 │   └── premier_league/
-│       ├── season=2022-23/matches.csv
-│       ├── season=2023-24/matches.csv
-│       ├── season=2024-25/matches.csv
-│       └── season=2025-26/matches.csv
+│       └── season=.../matches.csv
 └── processed/
     └── premier_league/
         └── season=.../part-*.snappy.parquet
 ```
 
-O bucket possui bloqueio de acesso público e versionamento habilitado. A infraestrutura é gerenciada com Terraform e inclui:
+A infraestrutura provisionada com Terraform inclui:
 
-- Amazon S3 para armazenamento.
-- Instância EC2 Ubuntu para execução do container.
-- IAM Role e Instance Profile para acesso aos recursos necessários.
-- Security Group para controle de rede.
-- AWS Systems Manager Session Manager para acesso à instância.
+- **Amazon S3:** armazenamento dos dados brutos e processados, com bloqueio de acesso público e versionamento habilitado.
+- **Amazon EC2 (Ubuntu):** execução do processamento em container.
+- **IAM Role e Instance Profile:** permissões de acesso necessárias à instância.
+- **Security Group:** configuração de rede.
+- **AWS Systems Manager:** acesso à instância via Session Manager.
 
-O processamento **Raw → Processed foi executado e validado na AWS**. Os arquivos Parquet foram gravados no S3, com compressão Snappy e particionamento por temporada. A EC2 foi desligada após a execução para reduzir custos de computação; armazenamento S3/EBS e outros recursos podem continuar gerando cobranças.
+O processamento **Raw → Processed** foi executado e validado na EC2, gravando Parquet particionado por temporada no S3. A instância foi desligada após o uso para reduzir custos.
 
-Comandos usuais do Terraform, executados no diretório correspondente à configuração:
+> **Custos:** uma EC2 desligada deixa de cobrar pelo processamento da instância, mas recursos como S3 e volumes EBS podem continuar gerando custos. Antes de reprovisionar, revisar o plano Terraform e os recursos ativos na conta.
+
+### Comandos Terraform
+
+Executar no diretório que contém a configuração Terraform:
 
 ```bash
 terraform init
@@ -149,153 +179,234 @@ terraform plan
 terraform apply
 ```
 
-**Atenção:** revisar o plano e os custos antes de executar `terraform apply`. Arquivos de estado, segredos e configurações locais sensíveis não devem ser versionados.
+Não versionar arquivos de estado, credenciais, chaves ou configurações locais sensíveis.
 
-## Processamento Raw → Processed
+## Processamento e qualidade dos dados
+
+### Raw → Processed
 
 O script `processing/src/process_matches.py`:
 
-1. Lê os CSVs da camada Raw (local ou `s3a://`, conforme as variáveis de ambiente).
-2. Verifica colunas obrigatórias, datas, gols nulos e resultados permitidos (`H`, `D`, `A`).
-3. Extrai a temporada do caminho do arquivo.
-4. Padroniza nomes e tipos.
-5. Escreve Parquet particionado por `season`.
+1. Lê arquivos CSV da camada Raw.
+2. Valida colunas obrigatórias, datas, gols e resultados permitidos (`H`, `D`, `A`).
+3. Padroniza nomes e tipos de dados.
+4. Identifica a temporada a partir da origem do arquivo.
+5. Grava Parquet com compressão Snappy, particionado por `season`.
 
-Schema de saída:
-
-| Campo | Significado |
-|---|---|
-| `season` | Temporada |
-| `match_date` | Data da partida |
-| `home_team` | Mandante |
-| `away_team` | Visitante |
-| `home_goals` | Gols do mandante |
-| `away_goals` | Gols do visitante |
-| `result` | `H` (mandante), `D` (empate), `A` (visitante) |
-
-As validações de consistência mais amplas foram realizadas no Data Profiling. Nem todas elas estão ainda incorporadas à função de validação do pipeline Raw → Processed.
-
-## Data Profiling
-
-O script `processing/src/profile_matches.py` lê os arquivos da camada Processed **sem alterá-los** e verifica:
-
-- Schema e total de registros.
-- Quantidade de partidas, equipes e intervalo de datas por temporada.
-- Distribuição dos resultados.
-- Partidas duplicadas.
-- Valores nulos e gols negativos.
-- Coerência entre resultado e placar.
-- Quantidade de jogos por equipe (38, sendo 19 em casa e 19 fora).
-- Partidas em que mandante e visitante são a mesma equipe.
-
-**Resultado da inspeção:** 1.520 partidas, 380 por temporada, 20 equipes por temporada e **nenhuma inconsistência identificada nas regras verificadas**. Isso não substitui uma comparação integral com fontes oficiais.
-
-## Camada Analytics
-
-O script `processing/src/build_team_stats.py` lê os Parquets processados e constrói o dataset **`team_season_stats`**, com uma linha por equipe e temporada.
-
-Para cada partida, cria duas perspectivas (mandante e visitante) com `unionByName()`; depois consolida os registros por equipe e temporada.
-
-Campos gerados:
+**Schema principal de saída:**
 
 | Campo | Descrição |
 |---|---|
-| `season`, `team` | Temporada e equipe |
-| `matches` | Jogos disputados |
-| `wins`, `draws`, `losses` | Vitórias, empates e derrotas |
-| `goals_for`, `goals_against` | Gols marcados e sofridos |
-| `goal_difference` | Saldo de gols |
-| `points` | Pontos: 3 por vitória, 1 por empate |
-| `points_percentage` | Pontos obtidos / pontos possíveis × 100 |
-| `home_matches`, `away_matches` | Jogos em casa e fora |
-| `home_wins`, `away_wins` | Vitórias em casa e fora |
+| `season` | Temporada |
+| `match_date` | Data da partida |
+| `home_team`, `away_team` | Equipes mandante e visitante |
+| `home_goals`, `away_goals` | Gols de cada equipe |
+| `result` | `H`: vitória do mandante; `D`: empate; `A`: vitória do visitante |
 
-**Saída local:** `data/analytics/team_season_stats/`, em Parquet particionado por temporada, com **80 registros**.
+### Data Profiling
 
-A pontuação é calculada a partir dos resultados das partidas, sem incorporar eventuais punições administrativas. Essa tabela consolida a **temporada completa**: serve para análises retrospectivas, mas **não deve ser usada diretamente para prever partidas da própria temporada**, pois isso causaria vazamento de informação (*data leakage*).
+O script `processing/src/profile_matches.py` inspeciona os dados processados sem modificá-los. Entre as verificações estão schema, volume por temporada, nulos, duplicidades, gols negativos, coerência entre placar e resultado, partidas por equipe e confronto de uma equipe contra si mesma.
 
-## Testes automatizados
+Na inspeção realizada, foram identificadas **1.520 partidas**, com **380 por temporada**, e nenhuma inconsistência nas regras verificadas. Essas validações não equivalem a uma auditoria integral contra fontes oficiais.
 
-Os testes usam Pytest e pequenos DataFrames PySpark criados em memória, sem depender dos arquivos históricos.
+## Preparação analítica dos dados
 
-**13 testes aprovados:**
+### Estatísticas por equipe e temporada
 
-- **7 testes** de processamento: colunas obrigatórias, ausência de colunas, dados válidos, data inválida, gols nulos, resultado inválido e schema transformado.
-- **6 testes** analíticos: quantidade de equipes, jogos por equipe, cálculo de pontos, saldo de gols, equilíbrio global entre gols marcados e sofridos e contagem de jogos em casa/fora.
+O script `processing/src/build_team_stats.py` gera `data/analytics/team_season_stats/`, com **80 registros** (20 equipes × 4 temporadas).
 
-A fixture de sessão Spark é compartilhada em `tests/conftest.py`.
+Indicadores disponíveis:
 
-## Execução local com Docker
+- Partidas, vitórias, empates e derrotas.
+- Gols marcados, gols sofridos e saldo de gols.
+- Pontos e percentual dos pontos possíveis.
+- Jogos e vitórias em casa e fora.
 
-Os comandos abaixo foram preparados para **PowerShell**, a partir da **raiz do repositório**, com Docker Desktop disponível. O Dockerfile instala Python 3.12, Java 21, PySpark 4.0.1 e Pytest 8.4.2.
+A pontuação deriva dos resultados das partidas e não considera possíveis punições administrativas. Como são estatísticas consolidadas da temporada, **não são utilizadas diretamente para prever partidas daquela mesma temporada**, evitando vazamento de informação.
 
-### 1. Construir a imagem
+### Histórico e features de Machine Learning
+
+O script `processing/src/build_match_features.py` produz dois datasets:
+
+| Dataset | Granularidade | Registros |
+|---|---|---:|
+| `team_match_history` | Uma linha por equipe em cada partida | 3.040 |
+| `match_features` | Uma linha por partida | 1.520 |
+
+As features incluem forma recente das equipes nas **cinco partidas anteriores**, como pontos, média de gols marcados e sofridos, taxa de vitórias, saldo de gols e desempenho específico em casa/fora. Também é calculada a diferença de pontos recentes entre as equipes.
+
+O cálculo das features históricas exclui a própria partida analisada, de modo a evitar utilizar informações do resultado que se deseja prever.
+
+## Machine Learning — treinamento e avaliação
+
+O script `processing/src/train_model.py` utiliza o dataset `match_features` para classificar o resultado em três classes:
+
+- `H`: vitória do mandante.
+- `D`: empate.
+- `A`: vitória do visitante.
+
+Foram comparados **Logistic Regression**, **Random Forest** e **HistGradientBoosting**. A divisão dos dados foi cronológica, com conjuntos separados de treino, validação e teste.
+
+### Resultados na validação
+
+| Modelo | Accuracy | F1 macro | Log Loss |
+|---|---:|---:|---:|
+| Random Forest | 0,5300 | 0,3778 | **0,9932** |
+| Logistic Regression | **0,5668** | **0,4360** | 0,9976 |
+| HistGradientBoosting | 0,4101 | 0,3477 | 1,1664 |
+
+O **Random Forest** foi selecionado pelo **menor Log Loss na validação**, critério definido para priorizar a qualidade das probabilidades estimadas, apesar de a Logistic Regression ter obtido maior accuracy e F1 macro.
+
+### Avaliação final no teste
+
+| Métrica | Random Forest |
+|---|---:|
+| Partidas no teste | 202 |
+| Accuracy | 0,4109 |
+| F1 macro | 0,3156 |
+| Log Loss | 1,1299 |
+
+O modelo foi salvo em `models/football_model.joblib`, com **13 features** e metadados de treinamento. O desempenho no teste foi inferior ao observado na validação, o que limita a confiança nas previsões. **O modelo é demonstrativo e não deve ser interpretado como ferramenta confiável para decisões financeiras ou apostas.**
+
+## Aplicação Streamlit
+
+A aplicação é executada **localmente** e contém duas abas:
+
+### Dashboard histórico
+
+- Filtro por temporada e seleção de equipes.
+- Indicadores de partidas, gols, média de gols e quantidade de equipes.
+- Classificação simplificada por pontos, saldo e gols marcados.
+- Gráficos de pontos, saldo de gols e vitórias/empates/derrotas.
+
+Os indicadores superiores representam a temporada selecionada; a tabela e os gráficos também respondem ao filtro de equipes.
+
+### Previsão de partidas
+
+- Seleção de mandante e visitante.
+- Construção das 13 features a partir do histórico disponível de cada equipe.
+- Inferência com o Random Forest salvo.
+- Exibição das probabilidades de vitória do mandante, empate e vitória do visitante.
+
+A previsão utiliza os **últimos jogos disponíveis no dataset**, não resultados ao vivo. Equipes que participaram de temporadas diferentes podem aparecer na seleção. É necessário histórico suficiente para calcular as médias das últimas cinco partidas e das últimas cinco partidas no mando correspondente.
+
+## Como executar localmente
+
+Os comandos a seguir consideram **Windows PowerShell**, a partir da raiz do repositório.
+
+### Pré-requisitos
+
+- Python 3.12 e ambiente virtual (`.venv`).
+- Docker Desktop para processamento PySpark.
+- Dependências Python instaladas para o Streamlit e a inferência.
+- Datasets locais nas pastas `data/` e modelo treinado em `models/`.
+
+### 1. Ativar o ambiente virtual
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Para instalar as dependências da aplicação, caso ainda não estejam presentes:
+
+```powershell
+python -m pip install streamlit pandas pyarrow joblib scikit-learn==1.7.2
+```
+
+A versão `1.7.2` do scikit-learn corresponde à utilizada para salvar o modelo neste projeto.
+
+### 2. Construir a imagem de processamento
 
 ```powershell
 docker build -t football-data-pipeline .
 ```
 
-### 2. Executar os testes
+### 3. Executar os testes
 
 ```powershell
 docker run --rm football-data-pipeline python -m pytest tests/ -v
 ```
 
-Resultado mais recente: `13 passed`.
-
-### 3. Processar CSVs para Parquet
+### 4. Processar os CSVs em Parquet
 
 ```powershell
 docker run --rm -v "${PWD}/data:/data" football-data-pipeline
 ```
 
-> O processamento utiliza `mode("overwrite")`: essa execução regrava a saída Processed. Confirme os arquivos de origem antes de executá-la.
+> A transformação pode sobrescrever a saída Processed existente. Verifique os dados de origem antes de reexecutá-la.
 
-### 4. Inspecionar os dados processados
+### 5. Executar o Data Profiling
 
 ```powershell
 docker run --rm -v "${PWD}/data:/data" football-data-pipeline python /app/src/profile_matches.py
 ```
 
-### 5. Construir o dataset analítico
+### 6. Gerar a camada analítica
 
 ```powershell
 docker run --rm -v "${PWD}/data:/data" football-data-pipeline python /app/src/build_team_stats.py
 ```
 
-A saída será gravada em `data/analytics/team_season_stats/`. Essa etapa também usa `overwrite` em sua própria saída.
-
-### 6. Conferir containers ativos
+### 7. Gerar o histórico e as features
 
 ```powershell
-docker ps
+docker run --rm -v "${PWD}/data:/data" football-data-pipeline python /app/src/build_match_features.py
 ```
 
-Os containers executados com `--rm` são removidos automaticamente ao término. A pasta `data/` é montada como volume; os dados permanecem no computador após a execução.
+Esses comandos pressupõem a imagem Docker e os caminhos de dados configurados conforme o projeto. As saídas são gravadas em volumes locais.
 
-## Tecnologias utilizadas
+### 8. Iniciar o Streamlit
+
+Com os datasets e o modelo já gerados, execute no ambiente virtual local:
+
+```powershell
+python -m streamlit run app/streamlit_app.py
+```
+
+Acesse **http://localhost:8501** no navegador. Para encerrar o servidor, pressione `Ctrl + C` no terminal.
+
+> **Observação:** o Streamlit não roda dentro do Docker neste projeto. Docker é utilizado para o processamento PySpark; a aplicação e a inferência são executadas no ambiente virtual Python local.
+
+## Testes e verificações realizadas
+
+Foram implementados testes automatizados com **Pytest** para o processamento e a preparação analítica, além de verificações de geração de features. Os testes utilizam pequenos DataFrames PySpark em memória.
+
+Também foram validados manualmente:
+
+- Leitura dos datasets locais: **1.520 partidas**, **80 registros analíticos**, **1.520 registros de features** e **3.040 registros de histórico**.
+- Carregamento do artefato Random Forest com scikit-learn **1.7.2**.
+- Classes do modelo `['A', 'D', 'H']` e conjunto de **13 features**.
+- Execução da inferência, com probabilidades que somam **1,0**.
+- Abertura e funcionamento das duas abas da aplicação Streamlit.
+
+A quantidade exata de testes aprovados deve ser conferida na saída da execução atual do Pytest antes de ser informada como resultado final.
+
+## Tecnologias
 
 | Área | Tecnologias |
 |---|---|
-| Linguagem e processamento | Python, PySpark |
-| Formato de armazenamento | CSV, Parquet (Snappy) |
-| Infraestrutura | Terraform, AWS EC2, S3, IAM, Systems Manager |
-| Ambiente | Docker |
-| Qualidade e testes | Validações de dados, Data Profiling, Pytest |
-| Versionamento | Git, GitHub |
+| Linguagem | Python |
+| Infraestrutura como código | Terraform |
+| Nuvem | AWS EC2, S3, IAM, Systems Manager |
+| Processamento | Apache Spark / PySpark |
+| Containerização | Docker |
+| Armazenamento | CSV, Parquet com Snappy |
+| Qualidade e testes | Data Quality, Data Profiling, Pytest |
+| Machine Learning | scikit-learn, pandas, Joblib |
+| Visualização | Streamlit |
+| Versionamento | Git e GitHub |
 
-Machine Learning, interface web e ferramentas de visualização ainda fazem parte do **planejamento**, não da implementação concluída.
+## Limitações e decisões de escopo
 
-## Próximas etapas
+- A infraestrutura AWS foi utilizada para o processamento Raw → Processed; a camada analítica, o treinamento e a aplicação são locais.
+- Os dados não são atualizados automaticamente.
+- A classificação histórica é simplificada e não contempla todos os critérios oficiais de desempate ou punições administrativas.
+- O modelo preditivo apresenta desempenho limitado no conjunto de teste e utiliza apenas as features históricas disponíveis.
+- O projeto não inclui hospedagem pública do Streamlit, API de previsão, monitoramento contínuo ou novos serviços em nuvem.
+- Novas fontes de dados e análises mais detalhadas poderão ser consideradas em trabalhos futuros, sem ampliar o escopo desta entrega.
 
-1. **Feature Engineering:** gerar indicadores anteriores a cada partida (forma recente, gols, desempenho como mandante/visitante), sem utilizar dados futuros.
-2. **Avaliação preditiva:** separar treino e teste cronologicamente, estabelecer uma baseline e comparar modelos de classificação probabilística de vitória/empate/derrota.
-3. **Dashboard:** explorar desempenho por equipe, temporada e local da partida.
-4. **Aplicação web:** integrar análises e previsões em uma interface.
-5. **Operacionalização:** integrar a camada Analytics ao fluxo AWS e automatizar atualizações quando houver necessidade concreta, com monitoramento e controle de custos.
+## Contexto acadêmico
 
-A evolução da infraestrutura será guiada pelas necessidades do produto, sem adicionar serviços apenas para ampliar a lista de tecnologias.
+Este projeto foi desenvolvido como prática de uma **pós-graduação em Engenharia de Dados**, com ênfase em infraestrutura como código, serviços AWS, processamento distribuído, organização de camadas de dados, validação e consumo de informações.
 
-## Contexto
-
-Projeto desenvolvido como prática de uma **Pós-Graduação em Engenharia de Dados**, com foco em aprendizagem incremental, infraestrutura reproduzível, separação de responsabilidades, qualidade, segurança e uso responsável de recursos em nuvem.
+A aplicação Streamlit e o modelo de Machine Learning complementam a entrega, demonstrando um uso concreto dos dados preparados pelo pipeline. A prioridade foi construir uma solução **reproduzível, compreensível e com custos controlados**, evitando complexidade sem justificativa.
