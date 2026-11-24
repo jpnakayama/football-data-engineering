@@ -15,7 +15,8 @@ Uma única plataforma de dados de futebol que cresce a cada módulo do curso. Ca
 | Corte dos dados | Temporadas encerradas: Premier League até 2025-26, Brasileirão até 2025 |
 | Tempo real | Apenas **replay** de dados históricos (sem dados ao vivo) |
 | Custo | Mínimo: execução local em Docker; na AWS, apenas serviços de custo próximo de zero |
-| Produto final | O app Streamlit da parte 1 evolui para uma ferramenta de scouting |
+| Produto final | O app Streamlit da parte 1 evolui para uma ferramenta de scouting, e um agente de scouting via MCP consulta a plataforma (ver [Trilha de IA](#trilha-de-ia-agente-de-scouting-via-mcp)) |
+| Análises | Simples, mas gerando **produtos de dados** que não existem em nenhuma fonte isolada. O foco continua sendo arquitetura e engenharia |
 
 ## Fontes de dados
 
@@ -45,7 +46,15 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
   - Dimensões: jogador (SCD tipo 2 para clube e posição), clube, competição, temporada, data.
 - **Desafio de modelagem:** a Premier League joga de agosto a maio ("2024-25") e o Brasileirão no ano-calendário ("2024"). Uma dimensão de temporada compartilhada permite comparar as duas ligas.
 - **Métricas de scouting:** participação em gols a cada 90 minutos, minutos jogados por idade, valor de mercado por produção.
+- **Produtos de dados** (cruzam fontes e geram informação que nenhuma tabela traz sozinha):
+  1. **Carreira reconstruída do jogador:** clubes, valor de mercado e minutos ao longo do tempo, juntando transferências, avaliações e atuações.
+  2. **Fator de conversão entre ligas:** a partir de jogadores que atuaram nas duas ligas, estimar quanto vale uma participação em gol no Brasileirão em termos de Premier League.
+  3. **Valor de mercado esperado contra o real:** um modelo simples (idade, posição, produção, liga, minutos) estima o valor esperado; a diferença para o valor real gera a lista de subvalorizados, com critério explícito.
 - **Análise principal:** brasileiros que foram para a Premier League jogaram de fato? Minutos antes e depois da transferência, valor pago e retorno em campo.
+- **Limite da análise:** o Transfermarkt traz gols, assistências, minutos e cartões. Isso é suficiente para atacantes e meias, mas fraco para defensores; métricas de estilo de jogo ficam para a parte 4.
+- **Extras opcionais:**
+  - **Sucesso de transferência:** marcar cada transferência como bem-sucedida ou não pela participação em minutos na primeira temporada no novo clube.
+  - **Eficiência do mercado de apostas por liga:** comparar as probabilidades implícitas nas odds com os resultados reais.
 - **Governança:** dicionário de dados, perfis de acesso, segurança por linha, mascaramento e discussão de LGPD e GDPR (os dados são de pessoas, ainda que públicos), regras de qualidade.
 
 **Ferramentas:** PostgreSQL em Docker (o DW), SQL.
@@ -86,11 +95,40 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 
 **Ferramentas:** Apache Kafka (Docker, modo KRaft, um broker), Spark Structured Streaming, Streamlit.
 
+## Trilha de IA: agente de scouting via MCP
+
+O uso de IA entra como uma trilha que atravessa as partes 2 a 5, e não como uma parte separada. O agente é o **consumidor** da plataforma: ele só é confiável porque roda sobre dados modelados, documentados e governados. Como não é um módulo do curso, a trilha é leve e não tira o foco da engenharia.
+
+**Componente central:** um servidor MCP em Python, rodando localmente, que expõe a plataforma como **ferramentas com escopo definido**, e não como acesso livre a SQL. Cliente: Claude Desktop ou Claude Code, sem custo de API nem de AWS.
+
+Exemplos de ferramentas:
+
+- `buscar_jogadores(posição, idade, liga, faixa_de_valor)`
+- `comparar_jogadores(a, b)`
+- `trajetoria(jogador)`
+- `explicar_metrica(nome)`: responde com a definição, a origem e a data de corte dos dados, a partir do dicionário de dados.
+
+| Parte | O que a trilha de IA ganha |
+|---|---|
+| **2. DW** | Primeira versão do servidor MCP sobre os marts e o dicionário de dados. Acesso com **perfil somente leitura e mascaramento** (o agente vê a idade, não a data de nascimento). Toda consulta do agente fica registrada numa tabela de auditoria |
+| **3. Airbyte + dbt** | As **definições de métricas** passam a vir do dbt: o agente usa a mesma definição que o dashboard. A IA também entra na engenharia: **casamento de jogadores entre fontes** com regras e similaridade de nomes primeiro, e um LLM só para os casos ambíguos, com revisão humana e taxa de acerto medida |
+| **4. Lakehouse** | Ferramenta `jogadores_similares(jogador)` sobre os perfis de estilo de jogo |
+| **5. Streaming** | Ferramenta que lê o estado da partida em replay: "como está o jogador X neste jogo?" |
+
+**Princípios da trilha:**
+
+- O agente nunca acessa dados brutos nem dados pessoais sem mascaramento.
+- Ferramentas somente leitura, com limite de linhas por resposta.
+- Toda resposta indica a fonte e a data de corte dos dados.
+- Toda consulta é auditada.
+
+**Entregável final:** um post de fechamento mostrando a plataforma completa e o agente de scouting que só responde com dados governados.
+
 ## Arquitetura e custo
 
 | Onde | O quê |
 |---|---|
-| **Local (Docker)** | PostgreSQL (DW), Airbyte, dbt, Spark, Kafka, Streamlit |
+| **Local (Docker)** | PostgreSQL (DW), Airbyte, dbt, Spark, Kafka, Streamlit, servidor MCP |
 | **AWS** | S3, Glue Data Catalog, Athena, Lake Formation, IAM e AWS Budgets, tudo provisionado com Terraform |
 | **GitHub** | Código e CI com GitHub Actions (terraform validate, pytest, dbt build) |
 
@@ -108,6 +146,9 @@ Princípios de custo:
 - **API gratuita:** confirmar cobertura do Brasileirão e limites do plano.
 - **Casamento de jogadores entre fontes:** pode exigir correção manual para parte dos casos.
 - **Diferença de detalhe entre as ligas:** limita comparações diretas em métricas de evento.
+- **Fator de conversão entre ligas:** depende de haver jogadores suficientes que atuaram nas duas ligas no período; se a amostra for pequena, o resultado será apresentado como indicativo.
+- **Trilha de IA tomando o foco:** cada parte entrega primeiro a engenharia do módulo; as ferramentas do agente vêm depois.
+- **Custo de LLM no casamento de jogadores:** usar o modelo só nos casos ambíguos, depois das regras determinísticas.
 
 ## Entregáveis por parte
 
@@ -116,4 +157,5 @@ Cada parte termina com:
 1. Código e documentação no repositório.
 2. Seção no README com arquitetura, decisões e resultados.
 3. Uma pergunta de scouting respondida com dados.
-4. Material para apresentação (diagrama de arquitetura e principais achados).
+4. Novas ferramentas do agente de scouting, quando a parte prevê.
+5. Material para apresentação (diagrama de arquitetura e principais achados).
