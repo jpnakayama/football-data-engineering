@@ -17,8 +17,11 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /app
 
+# Contexto de build: raiz do repositório.
+# docker build -f processing/Dockerfile -t football-data-pipeline .
 COPY processing/src/ /app/src/
-COPY tests/ /app/tests/
+COPY ml/train_model.py /app/src/train_model.py
+COPY processing/tests/ /app/tests/
 
 ENV PYTHONPATH=/app
 

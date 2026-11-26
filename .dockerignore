@@ -5,9 +5,12 @@
 __pycache__
 *.pyc
 
-terraform/.terraform
+infra/terraform/.terraform
 *.tfstate
 *.tfstate.*
 *.tfvars
 
 data
+models
+warehouse
+docs

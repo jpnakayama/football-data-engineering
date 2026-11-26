@@ -27,3 +27,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Modelos treinados (artefatos gerados por ml/train_model.py)
+models/

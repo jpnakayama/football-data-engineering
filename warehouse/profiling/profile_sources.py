@@ -1,7 +1,7 @@
-"""Profiling das fontes da parte 2 (Premier League e Brasileirão).
+"""Profiling das fontes da parte 2 (cinco grandes ligas e Brasileirão, avaliado e descartado).
 
 Reproduz os números de docs/parte-2/profiling-fontes.md.
-Pré-requisito: python scripts/download_part2_data.py
+Pré-requisito: python ingestion/download_warehouse_sources.py
 Uso: python warehouse/profiling/profile_sources.py
 """
 
