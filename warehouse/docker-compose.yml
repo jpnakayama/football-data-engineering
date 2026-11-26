@@ -1,0 +1,28 @@
+# Data Warehouse local da parte 2 (PostgreSQL).
+# Uso: docker compose -f warehouse/docker-compose.yml --env-file warehouse/.env up -d
+name: football-dw
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: football-dw-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Apenas na própria máquina; porta 5433 para não colidir com outro Postgres local.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - football_dw_data:/var/lib/postgresql/data
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  football_dw_data:

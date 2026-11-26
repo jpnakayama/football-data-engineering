@@ -10,9 +10,9 @@ Uma única plataforma de dados de futebol que cresce a cada módulo do curso. Ca
 
 | Decisão | Escolha |
 |---|---|
-| Ligas | Premier League e Brasileirão Série A |
+| Ligas | As cinco grandes ligas da Europa: Premier League, La Liga, Bundesliga, Serie A e Ligue 1. O Brasileirão foi avaliado e descartado por falta de dados por jogador (ver [profiling](parte-2/profiling-fontes.md)) |
 | Público | Clubes e scouting (foco no **jogador**, não só na partida) |
-| Corte dos dados | Temporadas encerradas: Premier League até 2025-26, Brasileirão até 2025 |
+| Corte dos dados | Temporadas encerradas: 2012-13 a 2025-26 |
 | Tempo real | Apenas **replay** de dados históricos (sem dados ao vivo) |
 | Custo | Mínimo: execução local em Docker; na AWS, apenas serviços de custo próximo de zero |
 | Produto final | O app Streamlit da parte 1 evolui para uma ferramenta de scouting, e um agente de scouting via MCP consulta a plataforma (ver [Trilha de IA](#trilha-de-ia-agente-de-scouting-via-mcp)) |
@@ -22,12 +22,16 @@ Uma única plataforma de dados de futebol que cresce a cada módulo do curso. Ca
 
 | Fonte | Cobertura | Uso | Observações |
 |---|---|---|---|
-| [Football-Data.co.uk](https://www.football-data.co.uk/) | PL: resultados, odds e estatísticas de jogo. Brasileirão: apenas resultados e odds de fechamento (2012 em diante) | Partidas e resultados | Já usado na parte 1. O arquivo do Brasil continua sendo atualizado |
-| [Transfermarkt datasets](https://github.com/dcaribou/transfermarkt-datasets) (Kaggle) | Inclui Premier League (`GB1`) e Brasileirão (`BRA1`). Tabelas: players, clubs, games, appearances, game_events, game_lineups, transfers, player_valuations, competitions | Base principal de jogadores, valor de mercado e transferências | Licença CC0. **Atualizações pausadas em 6/7/2026**: cobre as temporadas encerradas, mas não serve como fonte contínua |
-| [StatsBomb Open Data](https://github.com/statsbomb/open-data) | Eventos lance a lance. Premier League apenas 2003/04 e 2015/16. **Nenhuma competição brasileira** | Perfis de estilo de jogo (parte 4) e replay (parte 5) | Exige citar a StatsBomb como fonte e usar o logo nas publicações. Confirmar os termos do LICENSE antes de publicar |
+| [Football-Data.co.uk](https://www.football-data.co.uk/) | As cinco ligas com resultados, estatísticas de jogo (chutes, chutes no alvo, escanteios, faltas, cartões) e odds | Partidas, estatísticas e odds | Já usado na parte 1. Mesmas colunas nas cinco ligas |
+| [Transfermarkt datasets](https://github.com/dcaribou/transfermarkt-datasets) (Kaggle) | As cinco ligas de 2012-13 a 2025-26 com partidas e atuações (minutos, gols, assistências, cartões) em todos os jogos. Tabelas: players, clubs, games, appearances, game_events, transfers, player_valuations, competitions | Base principal de jogadores, atuações, valor de mercado e transferências | Licença CC0. **Atualizações pausadas em 6/7/2026**: cobre as temporadas encerradas, mas não serve como fonte contínua |
+| [StatsBomb Open Data](https://github.com/statsbomb/open-data) | Eventos lance a lance. Temporada 2015/16 das cinco ligas, além de outras competições | Perfis de estilo de jogo (parte 4) e replay (parte 5) | Exige citar a StatsBomb como fonte e usar o logo nas publicações. Confirmar os termos do LICENSE antes de publicar |
 | API de futebol com plano gratuito (candidata: football-data.org) | A confirmar | Demonstração opcional de ingestão de API na parte 3 | Verificar cobertura e limites do plano gratuito |
 
-**Limitação conhecida:** o nível de detalhe é diferente entre as ligas. A Premier League tem estatísticas de jogo e eventos lance a lance; o Brasileirão tem resultados, odds e eventos básicos (gols, cartões, substituições) do Transfermarkt. O projeto deixa explícito o que pode e o que não pode ser afirmado com cada fonte.
+**Particularidades conhecidas:**
+
+- A Bundesliga tem 18 clubes (306 partidas por temporada) e a Ligue 1 também, desde 2023-24.
+- A Ligue 1 2019-20 foi encerrada mais cedo por causa da Covid (279 partidas).
+- Os nomes de clubes e jogadores diferem entre as fontes e precisam de tabelas de correspondência.
 
 ## Partes do projeto
 
@@ -39,18 +43,22 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 
 ### Parte 2 — Data Warehouse: modelagem, implementação e governança
 
-*"Quem está subvalorizado no Brasileirão?"*
+*"Quanto vale a produção de um jogador de outra liga se ele for para a Premier League?"*
 
 - **Modelo dimensional centrado no jogador**:
-  - Fatos: atuações (minutos, gols, assistências, cartões por jogo), valor de mercado ao longo do tempo, transferências, partidas.
+  - Fatos: atuações (minutos, gols, assistências, cartões por jogo), valor de mercado ao longo do tempo, transferências, partidas (com estatísticas e odds).
   - Dimensões: jogador (SCD tipo 2 para clube e posição), clube, competição, temporada, data.
-- **Desafio de modelagem:** a Premier League joga de agosto a maio ("2024-25") e o Brasileirão no ano-calendário ("2024"). Uma dimensão de temporada compartilhada permite comparar as duas ligas.
+- **Desafios de modelagem:**
+  - Dimensões compartilhadas entre cinco ligas com números de clubes e de partidas diferentes.
+  - Temporada interrompida (Ligue 1 2019-20), tratada como dado real e não como falha.
+  - Mesmo clube com nomes diferentes nas duas fontes, exigindo tabela de correspondência.
 - **Métricas de scouting:** participação em gols a cada 90 minutos, minutos jogados por idade, valor de mercado por produção.
 - **Produtos de dados** (cruzam fontes e geram informação que nenhuma tabela traz sozinha):
   1. **Carreira reconstruída do jogador:** clubes, valor de mercado e minutos ao longo do tempo, juntando transferências, avaliações e atuações.
-  2. **Fator de conversão entre ligas:** a partir de jogadores que atuaram nas duas ligas, estimar quanto vale uma participação em gol no Brasileirão em termos de Premier League.
+  2. **Fator de conversão entre ligas:** a partir dos cerca de 1.900 jogadores que atuaram em mais de uma das cinco ligas, estimar quanto vale uma participação em gol em cada liga em termos de Premier League.
   3. **Valor de mercado esperado contra o real:** um modelo simples (idade, posição, produção, liga, minutos) estima o valor esperado; a diferença para o valor real gera a lista de subvalorizados, com critério explícito.
-- **Análise principal:** brasileiros que foram para a Premier League jogaram de fato? Minutos antes e depois da transferência, valor pago e retorno em campo.
+- **Análise principal:** contratações vindas das outras quatro ligas para a Premier League deram certo? Minutos antes e depois da transferência, valor pago e retorno em campo.
+- **Recorte para o público brasileiro:** os brasileiros nas cinco grandes ligas, com trajetória, minutos e valor de mercado.
 - **Limite da análise:** o Transfermarkt traz gols, assistências, minutos e cartões. Isso é suficiente para atacantes e meias, mas fraco para defensores; métricas de estilo de jogo ficam para a parte 4.
 - **Extras opcionais:**
   - **Sucesso de transferência:** marcar cada transferência como bem-sucedida ou não pela participação em minutos na primeira temporada no novo clube.
@@ -67,7 +75,7 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 - **dbt** reconstrói o DW da parte 2 em camadas (staging, intermediate, marts), com testes, documentação e snapshots (SCD tipo 2).
 - **Tabelas de consumo:** forma recente do jogador (últimos 5 jogos) e shortlist por posição, idade e faixa de valor.
 - **Problema real de scouting:** casar o mesmo jogador em fontes diferentes (grafias e IDs distintos). Tabela de correspondência e testes no dbt.
-- **Opcional:** ingestão do Brasileirão 2026, ainda em andamento, pelo CSV do Football-Data.co.uk ou por uma API gratuita.
+- **Opcional:** ingestão de uma API de futebol gratuita, como demonstração de conector de API.
 
 **Ferramentas:** Airbyte (local, Docker), dbt Core com adaptador Postgres.
 
@@ -76,9 +84,8 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 *"Qual é o estilo de jogo desse atleta?"*
 
 - **Camadas bronze, silver e gold** no S3 em tabelas Apache Iceberg (time travel, evolução de schema, MERGE).
-- **Eventos lance a lance** da StatsBomb para a Premier League 2015/16 (temporada do Leicester campeão): passes progressivos, desarmes, pressões, conduções por jogador.
-- **Busca por similaridade:** "quem joga parecido com o Kanté de 2015/16?"
-- **Brasileirão:** eventos básicos do Transfermarkt, com a diferença de detalhe documentada.
+- **Eventos lance a lance** da StatsBomb para a temporada 2015/16 das cinco ligas (incluindo o Leicester campeão): passes progressivos, desarmes, pressões, conduções por jogador.
+- **Busca por similaridade entre ligas:** "quem, na Serie A ou na Bundesliga, joga parecido com o Kanté de 2015/16?"
 - **Governança do lake:** catálogo e permissões por camada.
 
 **Ferramentas:** S3, Apache Iceberg, AWS Glue Data Catalog, Amazon Athena, AWS Lake Formation, PySpark em Docker (local).
@@ -88,7 +95,7 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 *"O scout assistindo ao jogo em tempo real"*
 
 - **Replay** de uma partida da Premier League: um produtor publica os eventos da StatsBomb no Kafka respeitando a ordem e o tempo do jogo (acelerado).
-- **Spark Structured Streaming** atualiza, a cada evento, as estatísticas do jogador observado e a probabilidade de vitória (modelo da parte 1, retreinado com as duas ligas).
+- **Spark Structured Streaming** atualiza, a cada evento, as estatísticas do jogador observado e a probabilidade de vitória (modelo da parte 1, retreinado com as cinco ligas).
 - **Alertas**, por exemplo: "o jogador X já tem 5 desarmes, acima da média dele".
 - Resultados gravados em tabelas Iceberg e exibidos no Streamlit.
 - Na apresentação, o Amazon MSK aparece como o caminho de produção; no projeto, Kafka roda localmente para manter o custo zero.
@@ -143,10 +150,10 @@ Princípios de custo:
 
 - **Recursos da máquina local:** o Airbyte local pede cerca de 8 GB de RAM livres. Verificar antes da parte 3.
 - **Licença da StatsBomb:** confirmar os termos de uso antes de publicar análises.
-- **API gratuita:** confirmar cobertura do Brasileirão e limites do plano.
+- **API gratuita:** confirmar cobertura e limites do plano.
 - **Casamento de jogadores entre fontes:** pode exigir correção manual para parte dos casos.
-- **Diferença de detalhe entre as ligas:** limita comparações diretas em métricas de evento.
-- **Fator de conversão entre ligas:** depende de haver jogadores suficientes que atuaram nas duas ligas no período; se a amostra for pequena, o resultado será apresentado como indicativo.
+- **Fator de conversão entre ligas:** a amostra por par de ligas e por posição pode ficar pequena; nesses casos o resultado será apresentado como indicativo.
+- **Viés de seleção nas transferências:** só jogadores considerados bons o bastante mudam de liga, o que precisa ser declarado ao interpretar o fator de conversão.
 - **Trilha de IA tomando o foco:** cada parte entrega primeiro a engenharia do módulo; as ferramentas do agente vêm depois.
 - **Custo de LLM no casamento de jogadores:** usar o modelo só nos casos ambíguos, depois das regras determinísticas.
 
