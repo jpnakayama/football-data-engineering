@@ -9,6 +9,7 @@ Fontes:
 Os arquivos vão para data/raw/, que não é versionado.
 """
 
+import argparse
 from pathlib import Path
 
 import requests
@@ -65,11 +66,30 @@ def season_codes() -> list[tuple[str, str]]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--source",
+        choices=["all", "transfermarkt", "football-data"],
+        default="all",
+        help="Fonte a baixar (padrão: todas).",
+    )
+    source = parser.parse_args().source
+
+    if source in ("all", "transfermarkt"):
+        download_transfermarkt()
+    if source in ("all", "football-data"):
+        download_football_data()
+
+
+def download_transfermarkt() -> None:
     for table in TRANSFERMARKT_TABLES:
         download(
             f"{TRANSFERMARKT_BASE_URL}/{table}.csv.gz",
             TRANSFERMARKT_DIR / f"{table}.csv.gz",
         )
+
+
+def download_football_data() -> None:
     for division, league in FOOTBALL_DATA_LEAGUES.items():
         for label, code in season_codes():
             download(

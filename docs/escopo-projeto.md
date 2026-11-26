@@ -10,7 +10,7 @@ Uma única plataforma de dados de futebol que cresce a cada módulo do curso. Ca
 
 | Decisão | Escolha |
 |---|---|
-| Ligas | As cinco grandes ligas da Europa: Premier League, La Liga, Bundesliga, Serie A e Ligue 1. O Brasileirão foi avaliado e descartado por falta de dados por jogador (ver [profiling](parte-2/profiling-fontes.md)) |
+| Ligas | Referência: as cinco grandes ligas da Europa (Premier League, La Liga, Bundesliga, Serie A e Ligue 1), com a Premier League como destino das análises. Também entram as outras 9 ligas europeias com cobertura completa (Holanda, Portugal, Bélgica, Turquia, Escócia, Grécia, Rússia, Ucrânia, Dinamarca), copas e torneios da UEFA, como mercados de origem e de saída. O Brasileirão foi avaliado como liga principal e descartado por falta de dados por jogador (ver [profiling](parte-2/profiling-fontes.md)) |
 | Público | Clubes e scouting (foco no **jogador**, não só na partida) |
 | Corte dos dados | Temporadas encerradas: 2012-13 a 2025-26 |
 | Tempo real | Apenas **replay** de dados históricos (sem dados ao vivo) |
@@ -23,7 +23,7 @@ Uma única plataforma de dados de futebol que cresce a cada módulo do curso. Ca
 | Fonte | Cobertura | Uso | Observações |
 |---|---|---|---|
 | [Football-Data.co.uk](https://www.football-data.co.uk/) | As cinco ligas com resultados, estatísticas de jogo (chutes, chutes no alvo, escanteios, faltas, cartões) e odds | Partidas, estatísticas e odds | Já usado na parte 1. Mesmas colunas nas cinco ligas |
-| [Transfermarkt datasets](https://github.com/dcaribou/transfermarkt-datasets) (Kaggle) | As cinco ligas de 2012-13 a 2025-26 com partidas e atuações (minutos, gols, assistências, cartões) em todos os jogos. Tabelas: players, clubs, games, appearances, game_events, transfers, player_valuations, competitions | Base principal de jogadores, atuações, valor de mercado e transferências | Licença CC0. **Atualizações pausadas em 6/7/2026**: cobre as temporadas encerradas, mas não serve como fonte contínua |
+| [Transfermarkt datasets](https://github.com/dcaribou/transfermarkt-datasets) (Kaggle) | 14 ligas europeias (incluindo as cinco grandes), copas e torneios da UEFA de 2012-13 a 2025-26, com partidas e atuações (minutos, gols, assistências, cartões) em todos os jogos; outras 17 ligas só com partidas de 2024-25 e 2025-26; transferências e valor de mercado de 50 mil jogadores. Tabelas: players, clubs, games, appearances, game_events, transfers, player_valuations, competitions | Base principal de jogadores, atuações, valor de mercado e transferências | Licença CC0. **Atualizações pausadas em 6/7/2026**: cobre as temporadas encerradas, mas não serve como fonte contínua |
 | [StatsBomb Open Data](https://github.com/statsbomb/open-data) | Eventos lance a lance. Temporada 2015/16 das cinco ligas, além de outras competições | Perfis de estilo de jogo (parte 4) e replay (parte 5) | Exige citar a StatsBomb como fonte e usar o logo nas publicações. Confirmar os termos do LICENSE antes de publicar |
 | API de futebol com plano gratuito (candidata: football-data.org) | A confirmar | Demonstração opcional de ingestão de API na parte 3 | Verificar cobertura e limites do plano gratuito |
 
@@ -55,9 +55,10 @@ Terraform, AWS (S3, EC2, IAM, SSM), PySpark em Docker, features pré-partida, mo
 - **Métricas de scouting:** participação em gols a cada 90 minutos, minutos jogados por idade, valor de mercado por produção.
 - **Produtos de dados** (cruzam fontes e geram informação que nenhuma tabela traz sozinha):
   1. **Carreira reconstruída do jogador:** clubes, valor de mercado e minutos ao longo do tempo, juntando transferências, avaliações e atuações.
-  2. **Fator de conversão entre ligas:** a partir dos cerca de 1.900 jogadores que atuaram em mais de uma das cinco ligas, estimar quanto vale uma participação em gol em cada liga em termos de Premier League.
+  2. **Fator de conversão entre ligas:** a partir dos jogadores que atuaram em mais de uma liga, estimar quanto vale uma participação em gol em cada liga, inclusive Eredivisie, Liga Portugal e liga belga, em termos de Premier League.
   3. **Valor de mercado esperado contra o real:** um modelo simples (idade, posição, produção, liga, minutos) estima o valor esperado; a diferença para o valor real gera a lista de subvalorizados, com critério explícito.
 - **Análise principal:** contratações vindas das outras quatro ligas para a Premier League deram certo? Minutos antes e depois da transferência, valor pago e retorno em campo.
+- **Trajetórias de carreira:** desempenho dos jogadores antes, durante e depois de passar pelas cinco ligas, em quatro cenários: fora → dentro (764 jogadores), dentro → fora (879), fora → dentro → fora (324) e dentro → fora → dentro (158). Detalhes e cuidados de interpretação na [modelagem](parte-2/modelagem.md#71-trajetórias-de-carreira).
 - **Recorte para o público brasileiro:** os brasileiros nas cinco grandes ligas, com trajetória, minutos e valor de mercado.
 - **Limite da análise:** o Transfermarkt traz gols, assistências, minutos e cartões. Isso é suficiente para atacantes e meias, mas fraco para defensores; métricas de estilo de jogo ficam para a parte 4.
 - **Extras opcionais:**
